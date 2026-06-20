@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: carbon-tracker-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: carbon_tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Automatically run DDL schema on startup
+      - ./backend/src/models/db.sql:/docker-entrypoint-initdb.d/db.sql
+    networks:
+      - carbon-network
+
+  backend:
+    build: ./backend
+    container_name: carbon-tracker-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=carbon_tracker
+      # Set this to mock credentials in compose by default
+      - FIREBASE_SERVICE_ACCOUNT_JSON=
+    depends_on:
+      - db
+    networks:
+      - carbon-network
+
+  frontend:
+    build: ./frontend
+    container_name: carbon-tracker-web
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - carbon-network
+
+volumes:
+  postgres_data:
+
+networks:
+  carbon-network:
+    driver: bridge
